@@ -17,7 +17,7 @@ def extract_youtube_id(url_input):
     url_input = str(url_input).strip()
 
     # Verificar si es una URL válida de YouTube usando expresiones regulares
-    youtube_regex = r'(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([a-zA-Z0-9_-]+)(?:&|$|\?|#)'
+    youtube_regex = r'(?:https?://)?(?:www\.)?(?:youtube\.com/(?:(?:watch|live)\?v=|live/)|youtu\.be/)([a-zA-Z0-9_-]+)(?:[?&#]|$)'
     match = re.search(youtube_regex, url_input)
 
     if match:
@@ -35,6 +35,7 @@ def main():
 
     # Extraer ID de YouTube
     video_id = extract_youtube_id(clipboard_content)
+
 
     if not video_id:
         messagebox.showerror("Error", "No tienes un link de YouTube en tu portapapeles")
