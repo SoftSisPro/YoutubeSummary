@@ -1,11 +1,9 @@
 import yt_dlp
 import requests
-import pyperclip
 import re
-import tkinter as tk
-from tkinter import messagebox
 import traceback
 import xml.etree.ElementTree as ET
+import sys
 
 def extract_youtube_id(url_input):
     """
@@ -49,10 +47,10 @@ def obtener_transcripcion(video_id):
     """
     Obtiene la transcripción de un video de YouTube usando yt-dlp.
     Intenta en este orden:
-      1) auto-generated Spanish (es)
-      2) auto-generated English (en)
-      3) manual Spanish (es)
-      4) manual English (en)
+        1) auto-generated Spanish (es)
+        2) auto-generated English (en)
+        3) manual Spanish (es)
+        4) manual English (en)
     Devuelve una lista de líneas de texto, o None si no hay transcript.
     """
     ydl_opts = {
@@ -90,7 +88,7 @@ def obtener_transcripcion(video_id):
 
 def extraer_texto_de_p(lineas):
     """
-    Dada una lista de líneas como 
+    Dada una lista de líneas como
     '<p begin="..." end="..." style="...">Texto aquí</p>',
     devuelve una lista con 'Texto aquí' para cada línea válida.
     """
@@ -108,23 +106,23 @@ def extraer_texto_de_p(lineas):
     return textos
 
 def main():
-    # Inicializar Tkinter para diálogos
-    root = tk.Tk()
-    root.withdraw()
 
-    # Extraer ID desde el portapapeles
-    clipboard_content = pyperclip.paste()
-    video_id = extract_youtube_id(clipboard_content)
+    # Verificar si se proporcionó un enlace como argumento
+    if len(sys.argv) != 2:
+        print("Uso: python run.py <link>")
+        return
+
+    # Extraer ID desde el argumento de línea de comandos
+    url_input = sys.argv[1]
+    video_id = extract_youtube_id(url_input)
     if not video_id:
-        messagebox.showerror("Error", "No hay un enlace de YouTube válido en el portapapeles.")
-        root.destroy()
+        print("No hay un enlace de YouTube válido en el argumento proporcionado.")
         return
 
     # Obtener la transcripción
     transcript = obtener_transcripcion(video_id)
     if not transcript:
-        messagebox.showerror("Error", "No se encontró transcripción para este video.")
-        root.destroy()
+        print("No se encontró transcripción para este video.")
         return
 
     transcript = extraer_texto_de_p(transcript)
@@ -138,9 +136,9 @@ Full transcript:
 {transcript_text}
 """
 
-    pyperclip.copy(prompt)
-    #messagebox.showinfo("Éxito", "Prompt copiado al portapapeles.")
-    root.destroy()
+    with open('output.txt', 'w', encoding='utf-8') as f:
+        f.write(prompt)
+    print("Prompt copiado al portapapeles.")
 
 if __name__ == "__main__":
     main()
