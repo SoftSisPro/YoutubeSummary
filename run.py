@@ -1,4 +1,4 @@
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
 import pyperclip
 import re
 import tkinter as tk
@@ -25,6 +25,27 @@ def extract_youtube_id(url_input):
     else:
         return None
 
+def obtener_transcripcion(video_id):
+    idiomas = ['en', 'es']  # Prioridad: español, luego inglés
+    # 1. Averigua qué hay disponible
+    
+    for idioma in idiomas:
+        try:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id=video_id, languages=[idioma])
+            #transcript = YouTubeTranscriptApi.list_transcripts(video_id)
+
+            print(f"✅ Transcripción encontrada en: {idioma}")
+            return transcript
+        except NoTranscriptFound:
+            print(f"❌ No se encontró transcripción en: {idioma}")
+        except TranscriptsDisabled:
+            print("⚠️ Las transcripciones están desactivadas para este video.")
+            break
+        except Exception as e:
+            print(f"❌ Otro error en idioma {idioma}: {e}")
+            traceback.print_exc()
+    return None
+
 def main():
     # Crear una ventana tkinter oculta para poder mostrar mensajes
     root = tk.Tk()
@@ -32,22 +53,18 @@ def main():
 
     # Obtener el contenido del portapapeles
     clipboard_content = pyperclip.paste()
-
     # Extraer ID de YouTube
     video_id = extract_youtube_id(clipboard_content)
-
-
+    print(video_id)
     if not video_id:
         messagebox.showerror("Error", "No tienes un link de YouTube en tu portapapeles")
         root.destroy()
         return
 
-    try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id=video_id,languages=['en', 'es'])
-    except:
-        messagebox.showerror("Error", "No se encontró transcripción para este video")
-        #transcript = YouTubeTranscriptApi.get_transcript(video_id)
-        traceback.print_exc()
+    transcript = obtener_transcripcion(video_id)
+
+    if not transcript:
+        messagebox.showerror("Error", "No se encontró transcripción en ningún idioma")
         root.destroy()
         return
 
