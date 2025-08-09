@@ -1,0 +1,21 @@
+INFO:     Started server process [87332]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55922 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55923 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55923 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55943 - "GET /health HTTP/1.1" 200 OK
+🎬 Procesando video ID: kWc9qdDXdqo
+✅ Transcripción encontrada (automatic_captions) en: es
+🔄 Descargando subtítulos desde: https://www.youtube.com/api/timedtext?v=kWc9qdDXdqo&ei=DNmXaNfMA8_WzLUP_fzl-QI&caps=asr&opi=112496729&xoaf=5&hl=en&ip=0.0.0.0&ipbits=0&expire=1754807164&sparams=ip%2Cipbits%2Cexpire%2Cv%2Cei%2Ccaps%2Copi%2Cxoaf&signature=723395AD4DEE95C615B5A35F4F44D991E2F55ADA.22D7FEC45B893CBDCFE707F4A7798CBD06E2323B&key=yt8&kind=asr&lang=es&variant=punctuated&fmt=ttml
+✅ Descarga exitosa. Tamaño: 38448 caracteres
+✅ Extraídas 413 líneas de texto
+📄 Transcripción inicial: 413 líneas
+🔍 Procesando 413 líneas para extraer texto...
+✅ Extraídos 397 fragmentos de texto
+📝 Muestra del primer fragmento: ¿Te ha pasado que tienes flujos en...
+📝 Texto final: 14756 caracteres
+✅ Archivo guardado: outputs/output_cbaa6154-141f-40a3-b8f9-a468eb4a2f65.txt
+INFO:     127.0.0.1:55947 - "POST /process HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55952 - "GET /download/cbaa6154-141f-40a3-b8f9-a468eb4a2f65 HTTP/1.1" 200 OK

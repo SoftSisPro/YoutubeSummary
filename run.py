@@ -23,24 +23,74 @@ def extract_youtube_id(url_input):
 def descargar_y_parsear_subtitulos(url):
     """
     Descarga un archivo de subtítulos VTT o SRT desde la URL y lo parsea.
+    Maneja playlists M3U8 descargando los segmentos individuales.
     Devuelve una lista de líneas de texto.
     """
     try:
+        print(f"🔄 Descargando subtítulos desde: {url}")
         resp = requests.get(url)
         resp.raise_for_status()
+        print(f"✅ Descarga exitosa. Tamaño: {len(resp.text)} caracteres")
     except Exception as e:
         print(f"❌ Error al descargar subtítulos: {e}")
         traceback.print_exc()
         return None
 
-    lines = resp.text.splitlines()
-    transcript = []
-    for line in lines:
-        line = line.strip()
-        # Omitir líneas vacías, numeración y timestamps
-        if not line or re.match(r'^\d+$', line) or '-->' in line or re.match(r'^\d{2}:\d{2}:\d{2}\.', line):
-            continue
-        transcript.append(line)
+    content = resp.text
+    
+    # Si es una playlist M3U8, extraer las URLs de los segmentos
+    if content.startswith('#EXTM3U') or '.m3u8' in url:
+        print("📋 Detectada playlist M3U8, extrayendo segmentos...")
+        segment_urls = []
+        lines = content.splitlines()
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('https://') and 'timedtext' in line:
+                segment_urls.append(line)
+        
+        print(f"� Encontrados {len(segment_urls)} segmentos de subtítulos")
+        
+        # Descargar todos los segmentos
+        all_transcript = []
+        for i, segment_url in enumerate(segment_urls):
+            try:
+                print(f"📥 Descargando segmento {i+1}/{len(segment_urls)}...")
+                seg_resp = requests.get(segment_url)
+                seg_resp.raise_for_status()
+                
+                # Parsear el contenido VTT del segmento
+                segment_lines = seg_resp.text.splitlines()
+                for line in segment_lines:
+                    line = line.strip()
+                    # Omitir líneas vacías, numeración, timestamps y metadatos VTT
+                    if (not line or line.startswith('WEBVTT') or 
+                        re.match(r'^\d+$', line) or '-->' in line or 
+                        re.match(r'^\d{2}:\d{2}:\d{2}\.', line) or
+                        line.startswith('NOTE')):
+                        continue
+                    all_transcript.append(line)
+                        
+            except Exception as e:
+                print(f"⚠️  Error descargando segmento {i+1}: {e}")
+                continue
+        
+        transcript = all_transcript
+    else:
+        # Procesamiento normal para archivos VTT/SRT directos
+        lines = content.splitlines()
+        transcript = []
+        for line in lines:
+            line = line.strip()
+            # Omitir líneas vacías, numeración, timestamps y metadatos VTT
+            if (not line or line.startswith('WEBVTT') or 
+                re.match(r'^\d+$', line) or '-->' in line or 
+                re.match(r'^\d{2}:\d{2}:\d{2}\.', line) or
+                line.startswith('NOTE')):
+                continue
+            transcript.append(line)
+    
+    print(f"✅ Extraídas {len(transcript)} líneas de texto")
     return transcript
 
 def obtener_transcripcion(video_id):
@@ -88,21 +138,38 @@ def obtener_transcripcion(video_id):
 
 def extraer_texto_de_p(lineas):
     """
-    Dada una lista de líneas como
-    '<p begin="..." end="..." style="...">Texto aquí</p>',
-    devuelve una lista con 'Texto aquí' para cada línea válida.
+    Dada una lista de líneas, extrae el texto útil.
+    Maneja tanto formato XML como texto plano.
     """
     textos = []
+    print(f"🔍 Procesando {len(lineas)} líneas para extraer texto...")
+    
     for linea in lineas:
         linea = linea.strip()
-        try:
-            # Parseamos la línea como XML y obtenemos el texto del nodo <p>
-            elemento = ET.fromstring(linea)
-            if elemento.text:
-                textos.append(elemento.text.strip())
-        except ET.ParseError:
-            # Si no es un <p> bien formado, lo ignoramos
+        if not linea:
             continue
+            
+        # Si la línea contiene etiquetas XML, intentar parsearla
+        if '<' in linea and '>' in linea:
+            try:
+                # Intentar parsear como XML
+                elemento = ET.fromstring(linea)
+                if elemento.text:
+                    textos.append(elemento.text.strip())
+            except ET.ParseError:
+                # Si no es XML válido, extraer texto entre > y <
+                texto_extraido = re.sub(r'<[^>]*>', '', linea).strip()
+                if texto_extraido:
+                    textos.append(texto_extraido)
+        else:
+            # Si no tiene etiquetas XML, es texto plano
+            if linea and not re.match(r'^\d+$', linea) and '-->' not in linea:
+                textos.append(linea)
+    
+    print(f"✅ Extraídos {len(textos)} fragmentos de texto")
+    if textos:
+        print(f"📝 Muestra del primer fragmento: {textos[0][:100]}...")
+    
     return textos
 
 def main():
@@ -120,15 +187,26 @@ def main():
         return
 
     # Obtener la transcripción
+    print(f"🎬 Procesando video ID: {video_id}")
     transcript = obtener_transcripcion(video_id)
     if not transcript:
-        print("No se encontró transcripción para este video.")
+        print("❌ No se encontró transcripción para este video.")
         return
 
+    print(f"📄 Transcripción inicial: {len(transcript)} líneas")
     transcript = extraer_texto_de_p(transcript)
+    
+    if not transcript:
+        print("❌ No se pudo extraer texto de la transcripción.")
+        return
 
     # Unir líneas y crear prompt
     transcript_text = ' '.join(transcript)
+    print(f"📝 Texto final: {len(transcript_text)} caracteres")
+    
+    if len(transcript_text.strip()) == 0:
+        print("⚠️  El texto extraído está vacío.")
+        return
     prompt = f"""
 I'm going to give you the full transcript of a YouTube video. Please read it and write a summary in Spanish that is clear, well-structured, and easy to understand for someone who hasn't watched the video. It doesn't need to be super short; instead, focus on fully developing the main ideas, key points, and any final conclusions or takeaways. If possible, organize the summary into thematic sections or parts of the content, so it's easier to follow.
 
