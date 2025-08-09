@@ -92,10 +92,48 @@ async def process_youtube_video(
         result = processor.process_video(video_id, file_id, request.output_format)
         
         if not result["success"]:
-            raise HTTPException(
-                status_code=500,
-                detail=result["message"]
-            )
+            error_message = result["message"]
+            
+            # Detectar tipos específicos de errores
+            if "bot" in error_message.lower() or "cookies" in error_message.lower():
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "error": "YouTube bot detection",
+                        "message": "YouTube está bloqueando las solicitudes. Intenta con otro video o vuelve a intentar más tarde.",
+                        "suggestions": [
+                            "Probar con videos más populares y públicos",
+                            "Intentar de nuevo en unos minutos",
+                            "Verificar que el video tenga subtítulos disponibles"
+                        ]
+                    }
+                )
+            elif "private" in error_message.lower() or "unavailable" in error_message.lower():
+                raise HTTPException(
+                    status_code=404,
+                    detail={
+                        "error": "Video not accessible",
+                        "message": "El video no está disponible, es privado o no existe.",
+                        "suggestions": [
+                            "Verificar que la URL sea correcta",
+                            "Asegurarse de que el video sea público",
+                            "Comprobar que el video no haya sido eliminado"
+                        ]
+                    }
+                )
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail={
+                        "error": "Processing failed",
+                        "message": error_message,
+                        "suggestions": [
+                            "Verificar que el video tenga subtítulos disponibles",
+                            "Intentar con otro video",
+                            "Contactar soporte si el problema persiste"
+                        ]
+                    }
+                )
         
         return YouTubeResponse(
             success=True,

@@ -104,29 +104,83 @@ class YouTubeProcessor:
     def obtener_transcripcion(self, video_id: str) -> Optional[List[str]]:
         """
         Obtiene la transcripción de un video de YouTube usando yt-dlp.
-        Intenta en este orden:
-            1) auto-generated Spanish (es)
-            2) auto-generated English (en)
-            3) manual Spanish (es)
-            4) manual English (en)
-        Devuelve una lista de líneas de texto, o None si no hay transcript.
+        Intenta múltiples estrategias para evitar bloqueos de bot.
         """
-        ydl_opts = {
-            'skip_download': True,
-            'writesubtitles': True,
-            'writeautomaticsub': True,
-            'subtitleslangs': ['es', 'en'],
-            'quiet': True,
-            'no_warnings': True,
-        }
+        
+        # Estrategia 1: Configuración estándar con headers
+        strategies = [
+            {
+                'name': 'Standard with headers',
+                'opts': {
+                    'skip_download': True,
+                    'writesubtitles': True,
+                    'writeautomaticsub': True,
+                    'subtitleslangs': ['es', 'en'],
+                    'quiet': True,
+                    'no_warnings': True,
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-us,en;q=0.5',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'DNT': '1',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                    },
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['android', 'web'],
+                            'player_skip': ['configs'],
+                        }
+                    }
+                }
+            },
+            {
+                'name': 'Android client only',
+                'opts': {
+                    'skip_download': True,
+                    'writesubtitles': True,
+                    'writeautomaticsub': True,
+                    'subtitleslangs': ['es', 'en'],
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['android'],
+                        }
+                    }
+                }
+            },
+            {
+                'name': 'Basic configuration',
+                'opts': {
+                    'skip_download': True,
+                    'writesubtitles': True,
+                    'writeautomaticsub': True,
+                    'subtitleslangs': ['es', 'en'],
+                    'quiet': True,
+                    'no_warnings': True,
+                }
+            }
+        ]
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
-        except Exception as e:
-            print(f"❌ Error al extraer info del video: {e}")
-            traceback.print_exc()
-            return None
+        for strategy in strategies:
+            try:
+                print(f"🔄 Intentando estrategia: {strategy['name']}")
+                with yt_dlp.YoutubeDL(strategy['opts']) as ydl:
+                    info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}', download=False)
+                
+                # Si llegamos aquí, la extracción fue exitosa
+                print(f"✅ Estrategia exitosa: {strategy['name']}")
+                break
+                
+            except Exception as e:
+                print(f"❌ Estrategia '{strategy['name']}' falló: {e}")
+                if strategy == strategies[-1]:  # Última estrategia
+                    print("❌ Todas las estrategias fallaron")
+                    traceback.print_exc()
+                    return None
+                continue
 
         # Fuentes en orden: auto-generated, luego manual
         for source in ('automatic_captions', 'subtitles'):
